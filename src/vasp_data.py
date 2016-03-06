@@ -7,8 +7,15 @@ import sys
 import re
 import math 
 import warnings
-from os.path import join
-import argparse
+import json
+
+try:
+    import softpy
+    HAVE_SOFT = True
+except ImportError:
+    warnings.warn('SOFT is not available')
+    HAVE_SOFT = False
+
 
 import numpy as np
 from vasp_outcar import CONTCAR, OUTCAR
@@ -21,10 +28,9 @@ class VASP_DATA(object):
     manner, for info see manual. 
     The CONTCAR and OUTCAR file must be in the corresponding directories.
     The output data is placed in a text file, which can be read by RMC_rate.
-   
     
-    Parameters:
-    -----------------
+    Parameters
+    ----------
     rootdir: string
         Path to the main directory
     outcarfile: string
@@ -32,10 +38,9 @@ class VASP_DATA(object):
     contcarfile: string
         The data is read from a CONTCAR-file (VASP-format) named CONTCAR
     phononpyfile: string
-        The vibrational data is read from a phononpy file named 'mash.yaml' if present
+        The vibrational data is read from a phononpy file named 'mash.yaml' if 
+        present
     """
-
-        
     def __init__(self, rootdir, gasphase_directory):
         self.rootdir = rootdir
         self.gasphase_directory= gasphase_directory
@@ -43,10 +48,78 @@ class VASP_DATA(object):
         self.contcarfile = 'CONTCAR'
         self.phononpyfile = 'mesh.yaml'
 
+        # This makes this class a SOFT entity object
+        if HAVE_SOFT:
+            self.__soft_entity__ = softpy.entity_t(
+                get_meta_name='Extraction', 
+                get_meta_version='0.2',
+                get_meta_namespace='eu.nanosim.vasp',
+                get_dimensions=['nAtoms'],
+                get_dimension_size=lambda e, label: 4,
+                store=self.store,
+                load=self.load,
+                id=None,
+                user_data=self,
+            )
+
+    def store(self, e, datamodel):
+        """Stores self into datamodel.
+
+        Confirms to eu.nanosim.vasp.vaspdata version 0.1
+        
+        This function is used by softpy.Storage and normally not
+        called directly.
+
+        The current use of string lists is not useful.  The data layout will
+        drastically change in future version.
+        """
+        systems = self.sysdir_check()
+        surface_name = systems[0] if isinstance(systems[0], str) else ''
+        solid_name = systems[1] if isinstance(systems[1], str) else ''
+
+        softpy.datamodel_append_string(datamodel, 'surface_name', surface_name)
+        softpy.datamodel_append_string(datamodel, 'solid_name', solid_name)
+        
+        softpy.datamodel_append_string_list(
+            datamodel, 'gasphase', self.get_gasphaselist())
+        
+        if systems[0]:
+            surface = self.get_systemlist(system='surface')
+            adsorbate = self.get_statelist(system='surface')
+            surface_ts = self.get_tslist(system='surface')
+        else:
+            surface = ['']
+            adsorbate = ['']
+            surface_ts = ['']
+        softpy.datamodel_append_string_list(datamodel, 'surface', surface)
+        softpy.datamodel_append_string_list(datamodel, 'adsorbate', adsorbate)
+        softpy.datamodel_append_string_list(datamodel, 'surface_ts', surface_ts)
+        
+        if systems[1]:
+            solid = self.get_systemlist(system='solid')
+            bulk = self.get_statelist(system='solid')
+            solid_ts = self.get_tslist(system='solid')
+        else:
+            solid = ['']
+            bulk = ['']
+            solid_ts = ['']
+        softpy.datamodel_append_string_list(datamodel, 'solid', solid)
+        softpy.datamodel_append_string_list(datamodel, 'bulk', bulk)
+        softpy.datamodel_append_string_list(datamodel, 'solid_ts', solid_ts)
+
+    def load(self, e, datamodel):
+        """Loads datamodel into self.  
+        
+        This function is used by softpy.Storage and normally not
+        called directly.
+        """
+        raise NotImplementedError('loading data is not supported')
+
 
     def sysdir_check(self):
         """
-        Checks if directories "surface" and/or "solid " with vasp calculations are present under rootdir
+        Checks if directories "surface" and/or "solid " with vasp 
+        calculations are present under rootdir
         Returns a list of directories
         """
 
@@ -62,27 +135,27 @@ class VASP_DATA(object):
                 clean_dir = os.path.join(s, 'clean')
                 if os.path.isdir(clean_dir):
                     if os.path.isfile(
-                        os.path.join(clean_dir, self.contcarfile)) and os.path.isfile(
-                        os.path.join(clean_dir, self.outcarfile)):    
+                        os.path.join(
+                            clean_dir, self.contcarfile)) and os.path.isfile(
+                                os.path.join(clean_dir, self.outcarfile)):    
                         fsystems.append(clean_dir)
                     else:
                         raise MissingFileError(
-                            '--- No  CONTCAR and or OUTCAR file found for ' + clean_dir)
+                            '--- No  CONTCAR and or OUTCAR file found for ' + 
+                            clean_dir)
                 else:
                     raise MissingDirError(
-                        '--- the "clean" subdirectory must exists under directory: ' + 
-                        s)
-
+                        '--- the "clean" subdirectory must exists under '
+                        'directory: ' + s)
             else:
                 fsystems.append(None)
-
-
                 
         if fsystems[0] is None and systems[1] is None:
             # exit the program if there is no surface directory is found
             raise MissingDirError(
-                'the "surface" or "solid" subdirectory must exists under rootdirectory: ' + 
-                rootdir)
+                'the "surface" or "solid" subdirectory must exists under '
+                'rootdirectory: ' + rootdir)
+                
         else:
             return fsystems
 
@@ -120,9 +193,11 @@ class VASP_DATA(object):
         
     def statedir_check(self, system=None):
         """ 
-        Checks if directories with adsorbate/bulk structure calculations are present.
+        Checks if directories with adsorbate/bulk structure calculations are 
+        present.
         Return a list of adsorbate directories.
-        The root directory with subdirectories  must be set correctly, for info see manual.
+        The root directory with subdirectories  must be set correctly, for 
+        info see manual.
         """
         state_directory = os.path.join(self.rootdir, system)
         names = os.listdir(state_directory)
@@ -237,7 +312,8 @@ class VASP_DATA(object):
                     tssitesdir = os.path.join(transitiondir, tssites)
                     if len(tssites.split('-')) != 2:
                         raise DirnameError(
-                            'transition sites directories must contain 1 hyphen, '
+                            'transition sites directories must contain 1 '
+                            'hyphen, '
                             'separating the sites of the initial and final '
                             'state: %s' % tssitesdir)
                     site = tssites.split('-')[stateno]
@@ -268,7 +344,8 @@ class VASP_DATA(object):
 
         # end if there is no elements in gasphase directory
         if len(molecules) == 0 and molecule_directory is not False:
-            print('\n Warning --- no gasphase species found under ' + molecule_directory)
+            print('\n Warning --- no gasphase species found under ' +
+                  molecule_directory)
             return molecule_list
         elif molecule_directory is False:
             return molecule_list
@@ -348,10 +425,12 @@ class VASP_DATA(object):
                         if os.path.isdir(os.path.join(site_dir, site)): #config_dir + '/' + config):
                                                         
                             # get the variable for the adsorbed species
-                            variables = self.get_variables(state_dir, adsorbate=True, 
-                                                           species = state, config=site,
-                                                           system=system)
-                            variables_text = '\t'.join([str(w) for w in variables])
+                            variables = self.get_variables(
+                                state_dir, adsorbate=True, 
+                                species = state, config=site,
+                                system=system)
+                            variables_text = '\t'.join(
+                                [str(w) for w in variables])
                             state_list.append(variables_text) 
         return state_list
 
@@ -359,7 +438,8 @@ class VASP_DATA(object):
     def get_tslist(self, system=None):
         """
         Returns the calculated data regarding the transition states.
-        Transition states data calculated using (CI-)NEB or dimer method can extracted 
+        Transition states data calculated using (CI-)NEB or dimer method can 
+        extracted 
         Some updated are needed.
         """
 
@@ -368,7 +448,8 @@ class VASP_DATA(object):
         # get the surface atom species and numbers
         #surface_atoms = self.get_surface_atoms()
 
-        transition_state_dir, transition_states = self.tsdir_check(system=system)
+        transition_state_dir, transition_states = self.tsdir_check(
+            system=system)
         transition_state_list = []
         
         for transition_state in transition_states:
@@ -389,28 +470,36 @@ class VASP_DATA(object):
                     # Check if dimer method is used 
                     # If dim is present, results from dimer method will be used
                     if 'dim' in names:
-                        if os.path.isfile(os.path.join(ts_directory, 'dim', self.outcarfile)):
+                        if os.path.isfile(os.path.join(
+                                ts_directory, 'dim', self.outcarfile)):
                             ts_dir = os.path.join(ts_directory, 'dim')
                         else:
-                            print('    WARNING --- No OUTCAR/CONTCAR file found')
+                            print(
+                                '    WARNING --- No OUTCAR/CONTCAR file found')
                             break
 
                     # Check if CI-NEB method is used
                     elif len(names) > 1:
                         # make a list with image number and energies
-                        # the image with the highest energy is treated as the transition stat
+                        # the image with the highest energy is treated as the 
+                        # transition stat
                         # this can be changede
                         image_list = []
                         energy_list = []
 
                         for image in names:
-                            if image.startswith('0') or image.startswith('1') or image.startswith('2'):
+                            if (image.startswith('0') or 
+                                image.startswith('1') or 
+                                image.startswith('2')):
                                 # Make script for OUTCAR is .gz file
 
-                                if os.path.isfile(os.path.join(ts_directory, image, self.outcarfile)):
-                                    outcar = OUTCAR(os.path.join(ts_directory, image, self.outcarfile))
+                                if os.path.isfile(os.path.join(
+                                        ts_directory, image, self.outcarfile)):
+                                    outcar = OUTCAR(os.path.join(
+                                        ts_directory, image, self.outcarfile))
                                 else:
-                                    print('    WARNING --- No OUTCAR/CONTCAR file found')
+                                    print('    WARNING --- No OUTCAR/CONTCAR '
+                                          'file found')
                                     break
                                 
                                 tot_energy = outcar.read_energy()
@@ -422,21 +511,22 @@ class VASP_DATA(object):
                                      
                         # Transition state image
                         ts_dir = os.path.join(ts_directory, image_list[index])
-                    # The transisition state calculation is directly under the config_dir
-                    elif os.path.isfile(os.path.join(ts_directory, self.outcarfile)):
+                    # The transisition state calculation is directly under 
+                    # the config_dir
+                    elif os.path.isfile(
+                            os.path.join(ts_directory, self.outcarfile)):
                         ts_dir = ts_directory
                                 
                     # No transition state is found
                     else:
-                        print('    Warning --- no transition state files found for ' + str(ts_directory))
+                        print('    Warning --- no transition state files '
+                              'found for ' + str(ts_directory))
                         break
 
                 # get the variable for the adsorbed species
-                variables = self.get_variables(ts_dir, ts=True, 
-                                               species=transition_state, config=config,
-                                               system=system)
-                
-                
+                variables = self.get_variables(
+                    ts_dir, ts=True, species=transition_state, config=config,
+                    system=system)
 
                 variables_text = '\t'.join([str(w) for w in variables])
                 transition_state_list.append(variables_text) 
@@ -446,7 +536,8 @@ class VASP_DATA(object):
 
     def get_system_atoms(self, system=None):
         """
-        Returns a list of the atom kinds and number of atoms of the surface or solid system
+        Returns a list of the atom kinds and number of atoms of the surface '
+        'or solid system
         atom_kind : list
         atom_number : list
         """
@@ -466,7 +557,8 @@ class VASP_DATA(object):
 
     def get_frequencies(self, current_directory, gasphase = False):
         ''' Returns a list of vibrational frequcencies 
-        Vibrational frequency calculations are placed in a subdirectory named 'vib'
+        Vibrational frequency calculations are placed in a subdirectory 
+        named 'vib'
         Calculations from VASP or PHONONPY can be extracted
         If no vibrational frequencies is found an empty list is returned
         frequencies : list
@@ -477,25 +569,28 @@ class VASP_DATA(object):
         # Check if directory 'vib' exists and get frequencies
         if 'vib' in os.listdir(current_directory):
             print("   'vib' directory found")
-            if os.path.isfile(os.path.join(current_directory, 'vib', self.outcarfile)):
-                viboutcar = OUTCAR(os.path.join(current_directory, 'vib', self.outcarfile))
-                frequencies = viboutcar.read_vibrational_frequencies(gasphase=gasphase)
-            elif os.path.isfile(os.path.join(current_directory, 'vib', self.phononpyfile)):
+            if os.path.isfile(os.path.join(
+                    current_directory, 'vib', self.outcarfile)):
+                viboutcar = OUTCAR(os.path.join(
+                    current_directory, 'vib', self.outcarfile))
+                frequencies = viboutcar.read_vibrational_frequencies(
+                    gasphase=gasphase)
+            elif os.path.isfile(os.path.join(
+                    current_directory, 'vib', self.phononpyfile)):
                 from vasp_outcar import PHONONPY
-                viboutfile = PHONONPY(os.path.join(current_directory, 'vib', self.phononpyfile))
+                viboutfile = PHONONPY(
+                    os.path.join(current_directory, 'vib', self.phononpyfile))
                 frequencies = viboutfile.read_vibrational_frequencies_phononpy()
- 
         return frequencies
 
 
     def get_variables(self, current_directory, gasphase=False, surface=False,
                       solid=False, adsorbate=False, ts=False, species=None, 
                       config=None, system=None):
+        '''Get the variables surface_name, composition, species_name, state,
+        site_name, total_energy, frequencies, cell, positions, info
+        from the VASP calculations
         '''
-        Get the variables surface_name, composition, species_name, state, site_name, total_energy, 
-        frequencies, cell, positions, info from the VASP calculations
-        '''
-
 
         system_name = self.rootdir.split('/')[-1]
 
@@ -504,24 +599,30 @@ class VASP_DATA(object):
         
 
         # Check if outcarfile and contcarfile ie in the current_directory
-        if os.path.isfile(os.path.join(current_directory, self.outcarfile)) and os.path.isfile(os.path.join(current_directory, self.contcarfile)):    
+        if (os.path.isfile(os.path.join(
+                current_directory, self.outcarfile)) and
+            os.path.isfile(os.path.join(
+                current_directory, self.contcarfile))):
             outcar = OUTCAR(os.path.join(current_directory, self.outcarfile))  
             contcar = CONTCAR(os.path.join(current_directory, self.contcarfile))
             
-            # Checks if the OUTCAR file has completed -- will be substituted with outcar.check_convergence
+            # Checks if the OUTCAR file has completed -- will be 
+            # substituted with outcar.check_convergence
             finished = outcar.outcar_check()
             if finished is False:
                 if surface:
                     print("   ERROR --- OUTCAR is not complete --- Exiting")
                     sys.exit()
                 else:
-                    print("    Warning --- OUTCAR file is not complete --- This element is skipped")
+                    print("    Warning --- OUTCAR file is not complete "
+                          "--- This element is skipped")
                     variables = []
                 return variables                        
 
         # if no contcar or outcar is in current_directory move to next 
         else:                                  
-            print("    Warning --- No OUTCAR and/or CONTCAR file found --- This element is skipped")
+            print("    Warning --- No OUTCAR and/or CONTCAR file found "
+                  "--- This element is skipped")
             variables = []
             return variables
 
@@ -549,21 +650,24 @@ class VASP_DATA(object):
         if gasphase:
             # check if atom/molecule is in defined molecules!!!! Add this
 
-            # Set surface, site, species names and bulk_structure for gasphase species
+            # Set surface, site, species names and bulk_structure for 
+            # gasphase species
             surface_name = 'gasphase'
             species_name = contcar.read_composition(ordered=True, name=True)
             site_name = 'None'
             state = 'gasphase'
 
         if surface:
-            # Set surface, site, species names and bulk_structure for gasphase species
+            # Set surface, site, species names and bulk_structure for 
+            # gasphase species
             surface_name = system_name
             site_name = 'None'
             species_name = contcar.read_composition(ordered=True)
             state = 'surface' 
 
         if solid:
-            # Set surface, site, species names and bulk_structure for gasphase species
+            # Set surface, site, species names and bulk_structure for 
+            # gasphase species
             surface_name = system_name
             site_name = 'None'
             species_name = contcar.read_composition(ordered=True)
@@ -573,16 +677,17 @@ class VASP_DATA(object):
             surface_name = system_name
             site_name = config
             surface_atoms = self.get_system_atoms(system=system)
-            species_name = contcar.read_composition(adsorbed=True, 
-                                                    surface=surface_atoms, name=True)
+            species_name = contcar.read_composition(
+                adsorbed=True, surface=surface_atoms, name=True)
             state = species
 
         if ts:            
             surface_name = system_name
             site_name = config
             surface_atoms = self.get_system_atoms(system=system)
-            species_name = contcar.read_composition(adsorbed=True, 
-                                                    surface=surface_atoms, name=True)
+            species_name = contcar.read_composition(
+                adsorbed=True, surface=surface_atoms, name=True)
+                
             state = species
 
 
@@ -596,13 +701,16 @@ class VASP_DATA(object):
             if 'dim' in current_directory.split('/'):
                 print('    Dimer method - used')
             elif current_directory.split('/')[-1] in image:
-                print('    (CI)-NEB method - used - image ' + str(current_directory.split('/')[-1]) 
-                      + ' set as transition state --- Check that this is the correct transition state')
+                print('    (CI)-NEB method - used - image ' + 
+                      str(current_directory.split('/')[-1]) +
+                      ' set as transition state '
+                      '--- Check that this is the correct transition state')
             else:
-                print('    Method for finding transition state not given')        
+                print('    Method for finding transition state not given')
 
         
-        frequencies = self.get_frequencies(current_directory, gasphase = gasphase)
+        frequencies = self.get_frequencies(
+            current_directory, gasphase = gasphase)
         
         # Check the number of imaginary frequencies
         j = 0
@@ -611,11 +719,15 @@ class VASP_DATA(object):
                 j = j + 1
 
         if j > 0 and ts is False:
-            print("    WARNING --- " + str(j) + " imaginary frequencies found  ")
+            print("    WARNING --- " + str(j) + " imaginary frequencies found")
+                  
         elif j > 1 and ts is True:
-            print("    WARNING --- " + str(j) + " imaginary frequencies found - is this a true transition state?") 
+            print("    WARNING --- " + str(j) + 
+                  " imaginary frequencies found - is this a true "
+                  "transition state?") 
 
-        # make list containing information about surface species, species, state, site, energy, 
+        # make list containing information about surface species, species, 
+        # state, site, energy, 
         # frequencies, cell, positions and info
         variables = [surface_name, composition, species_name, state, site_name,
                          total_energy, frequencies, 
@@ -626,22 +738,51 @@ class VASP_DATA(object):
         return variables
                         
 
-    def write_outputdata(self, file_name):
+    def write_outputdata(self, uri, driver='txt', options=None):
+        """Writes VASP data to `uri` using `driver`
+        
+        Valid drivers are all drivers supported by SOFT in addition to "txt".
+        Additional options to the driver can be provided via `options`.
+
+        The "txt" driver is decoupled from SOFT and uses `uri` as the
+        output base name.  If `options` is "short", less details are written.
+        """
+        if driver == 'txt':
+            if options is None:
+                self.write_outputdata_txt(uri)
+            elif options == 'short':
+                self.write_outputdata_txt_short(uri)
+            else:
+                raise ValueError(
+                    'Only option supported by the txt driver is "short", '
+                    'got %r' % (options, ))
+        else:
+            with softpy.Storage(driver, uri, options) as s:
+                s.save(self)
+
+
+    def write_outputdata_txt(self, file_name):
         """
         Writes VASP data to a txt-file
         """
 
-
         # check the system
         systems = self.sysdir_check()
 
-
         #Create header
-        headings = '\t'.join(['system_name', 'total_composition',  'species_name', 'state', 'site_name', 
-                            'total_energy', 'frequencies', 
-                            'cell', 'posisitions', 'info'])
+        headings = '\t'.join(['system_name',
+                              'total_composition',
+                              'species_name',
+                              'state',
+                              'site_name',
+                              'total_energy',
+                              'frequencies',
+                              'cell',
+                              'posisitions',
+                              'info'])
 
-        # Get all information for the surface and different gasphase and adsorbed species
+        # Get all information for the surface and different gasphase 
+        # and adsorbed species
         gasphase_list = self.get_gasphaselist() 
 
         outputdata_list = [headings] + gasphase_list
@@ -651,14 +792,18 @@ class VASP_DATA(object):
             surface_list = self.get_systemlist(system='surface')
             adsorbate_list = self.get_statelist(system='surface')
             surfts_list = self.get_tslist(system='surface')
-            outputdata_list_surface = outputdata_list +  surface_list + adsorbate_list + surfts_list 
+            outputdata_list_surface = (
+                outputdata_list +  surface_list + adsorbate_list + surfts_list)
 
             # Put all the information togheter in a file
-            #outputdata_list = [headings] + gasphase_list + surface_list + adsorbate_list + transition_list
+            #outputdata_list = [headings] + gasphase_list + surface_list + 
+            # adsorbate_list + transition_list
             out_surface = '\n'.join(outputdata_list_surface)
 
+            file_basename = os.path.splitext(file_name)[0]
+
             # Write the information to an output file
-            ofile_surf = open(file_name+'_surface.txt', 'w')
+            ofile_surf = open(file_basename + '_surface.txt', 'w')
             ofile_surf.write(out_surface)
             ofile_surf.close()
 
@@ -666,21 +811,23 @@ class VASP_DATA(object):
             solid_list = self.get_systemlist(system='solid')
             bulk_list = self.get_statelist(system='solid')
             solidts_list = self.get_tslist(system='solid')
-            outputdata_list_solid = outputdata_list +  solid_list + bulk_list + solidts_list 
+            outputdata_list_solid = (
+                outputdata_list +  solid_list + bulk_list + solidts_list)
 
             # Put all the information togheter in a file
-            #outputdata_list = [headings] + gasphase_list + surface_list + adsorbate_list + transition_list
+            #outputdata_list = [headings] + gasphase_list + surface_list + 
+            # adsorbate_list + transition_list
             out_solid = '\n'.join(outputdata_list_solid)
 
             # Write the information to an output file
-            ofile_solid = open(file_name+'_solid.txt', 'w')
+            ofile_solid = open(file_basename + '_solid.txt', 'w')
             ofile_solid.write(out_solid)
             ofile_solid.close()
 
         
         
 
-    def write_outputdata_short(self, file_name):
+    def write_outputdata_txt_short(self, file_name):
         """
         Writes VASP data to a txt-file
         """
@@ -695,13 +842,15 @@ class VASP_DATA(object):
         output = []
         output.append(headings)
 
-        # Get all information for the surface and different gasphase and adsorbed species
+        # Get all information for the surface and different gasphase and 
+        # adsorbed species
         gasphase_list = self.get_gasphaselist()
 
 
         for i in range(0, len(gasphase_list)):
             item = gasphase_list[i].split("\t")
-            output.append("\t".join([item[0], item[2], item[3], item[4], item[5], item[6]]))
+            output.append("\t".join([item[0], item[2], item[3], 
+                                     item[4], item[5], item[6]]))
 
 
         if  systems[0] is not None:
@@ -712,15 +861,18 @@ class VASP_DATA(object):
             
             for i in range(0, len(surface_list)):
                 item = surface_list[i].split("\t")
-                out_surf.append("\t".join([item[0], item[2], item[3], item[4], item[5], item[6]]))
+                out_surf.append("\t".join([item[0], item[2], item[3],
+                                           item[4], item[5], item[6]]))
 
             for i in range(0, len(adsorbate_list)):
                 item = adsorbate_list[i].split("\t")
-                out_surf.append("\t".join([item[0], item[2], item[3], item[4], item[5], item[6]]))
+                out_surf.append("\t".join([item[0], item[2], item[3],
+                                           item[4], item[5], item[6]]))
 
             for i in range(0, len(surfts_list)):
                 item = surfts_list[i].split("\t")
-                out_surf.append("\t".join([item[0], item[2], item[3], item[4], item[5], item[6]]))
+                out_surf.append("\t".join([item[0], item[2], item[3],
+                                           item[4], item[5], item[6]]))
 
             outdata_surf = '\n'.join(out_surf)
 
@@ -737,15 +889,18 @@ class VASP_DATA(object):
             
             for i in range(0, len(solid_list)):
                 item = solid_list[i].split("\t")
-                out_solid.append("\t".join([item[0], item[2], item[3], item[4], item[5], item[6]]))
+                out_solid.append("\t".join([item[0], item[2], item[3],
+                                            item[4], item[5], item[6]]))
 
             for i in range(0, len(bulk_list)):
                 item = bulk_list[i].split("\t")
-                out_solid.append("\t".join([item[0], item[2], item[3], item[4], item[5], item[6]]))
+                out_solid.append("\t".join([item[0], item[2], item[3],
+                                            item[4], item[5], item[6]]))
 
             for i in range(0, len(solidts_list)):
                 item = solidts_list[i].split("\t")
-                out_solid.append("\t".join([item[0], item[2], item[3], item[4], item[5], item[6]]))
+                out_solid.append("\t".join([item[0], item[2], item[3],
+                                            item[4], item[5], item[6]]))
 
             outdata_solid = '\n'.join(out_solid)
 
@@ -771,8 +926,3 @@ class MissingFileError(TSCheckError):
     """Exception raised when a directory is missing."""
     pass
     
-
-
-
-
-   

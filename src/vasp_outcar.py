@@ -35,18 +35,18 @@ class CONTCAR(object):
 
     def parse(self, f):
         """Parse POSCAR file and store results."""
-	self.comment = f.readline()
-	self.scale = float(f.readline())
+        self.comment = f.readline()
+        self.scale = float(f.readline())
 
         
         # Read cell
-	vec1 = [float(v) for v in f.readline().split()]
-	vec2 = [float(v) for v in f.readline().split()]
-	vec3 = [float(v) for v in f.readline().split()]
+        vec1 = [float(v) for v in f.readline().split()]
+        vec2 = [float(v) for v in f.readline().split()]
+        vec3 = [float(v) for v in f.readline().split()]
         self.cell = [vec1, vec2, vec3]
 
         # Read number of each atom
-	sixthline_tokens = f.readline().split()  # Test for vasp5 syntax
+        sixthline_tokens = f.readline().split()  # Test for vasp5 syntax
         try:
             int(sixthline_tokens[0])
         except ValueError:
@@ -66,18 +66,18 @@ class CONTCAR(object):
             self.symbols.extend([at] * n)
         self.natoms = sum(atomnumbers)
 
-	seventhline = f.readline()
-	if seventhline[0].lower() == 's':
+        seventhline = f.readline()
+        if seventhline[0].lower() == 's':
             seventhline = f.readline()
             self.selective = True
-	else:
+        else:
             self.selective = False
         self.cartesian = True if seventhline[0].lower() == 'c' else False
 
         # Read coordinates
         self.coords = []
         self.movable = []
-	for i in range(self.natoms):
+        for i in range(self.natoms):
             tokens = f.readline().split()
             self.coords.append([float(tokens[i]) for i in range(3)])
             if self.selective:
@@ -95,7 +95,6 @@ class CONTCAR(object):
             if not tokens:
                 return
             self.velocities.append([float(tokens[i]) for i in range(3)])
-    
 
     def get_cell(self):
         """Returns the cell (including scaling) as a numpy array.
@@ -112,7 +111,7 @@ class CONTCAR(object):
             return np.array(self.coords)
         else:
             return np.dot(self.coords, self.get_cell())
-    
+
     def get_scaled_positions(self):
         """Returns scaled atom positions. as a numpy array.  
         Requires numpy."""
@@ -137,14 +136,13 @@ class CONTCAR(object):
             cell_list.append([c[0], c[1], c[2]])
         return cell_list
     
-
     def read_atoms_and_positions(self):
         """ Returns atomkind and positions
         """
         import numpy as np
 
         atomlist = []
-        
+
         symbols = self.symbols
         positions = self.get_positions()
         
@@ -152,34 +150,30 @@ class CONTCAR(object):
 
             s = symbols[i]
             p = positions[i]
-           
+
             atomlist.append([s, [float(p[0]), float(p[1]), float(p[2])]])
-        
+
         return atomlist
 
-    
     def read_atomkinds(self):
         return self.atomkinds
 
-    
     def read_atomnumbers(self):
         return self.atomnumbers
 
-        
     def read_chemical_species(self):
         """ Returns the chemical formula 
         """
         a = self.atomkinds
         n = self.atomnumbers
-        
+
         species = []
         for i in range(len(a)):
             species.append(str(a[i]))
             species.append(str(n[i]))
             chemical_species = ''.join(map(str, species))
-        
-        return chemical_species
 
+        return chemical_species
 
     def read_composition(self, ordered=False, adsorbed=False, surface=None, name=False):
         """
@@ -193,7 +187,7 @@ class CONTCAR(object):
         a = self.atomkinds
         n = self.atomnumbers
 
-        index = range(len(a))
+        index = list(range(len(a)))
         species = []
         numbers = []
 
@@ -213,7 +207,6 @@ class CONTCAR(object):
             for i in index:
                 species.append(str(a[i]))
                 numbers.append(str(n[i]))
-            
 
         if ordered:
             # Sorting the atoms in alphabetical order

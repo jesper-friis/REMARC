@@ -25,7 +25,7 @@
 # Version 1.0
 #
 ################################################################################
-
+from __future__ import print_function
 
 import os
 import os.path
@@ -38,23 +38,32 @@ from optparse import OptionParser
 parser = OptionParser(usage="%prog rootdir [options]",
                       version='%prog 1.0')
 
-parser.add_option('-g', dest='gasphase_directory', action='store', default = 'gasphase',
-                  help='path to directory containing gasphase speces - default: rootdir/%default')
-parser.add_option('-o', dest='outputfile', action='store', default='output', 
-                  help='Name of outputfile - default: %default')
-
+parser.add_option('-g', dest='gasphase_directory', action='store',
+                  default='gasphase',
+                  help='path to directory containing gasphase speces - '
+                  'default: rootdir/%default')
+parser.add_option('-o', '--output', default='output',
+                  help='Output uri. For the txt driver, this is the output '
+                  'base name - default: %default')
+parser.add_option('-d', '--driver', default='txt',
+                  help='Output driver; can be any driver supported by SOFT '
+                  '(hdf5, json, mongo...) in addition to txt '
+                  '- default: %default')
+parser.add_option('--options',
+                  help='Additional options passed to the driver.')
 
 opts, args = parser.parse_args()
 
 if len(args) == 0:
     parser.error("The directory (rootdir) must be given")
 elif len(args) >1:
-    parser.error("Too many arguments. Only the directory (rootdir) must be given")
+    parser.error('Too many arguments. Only the directory (rootdir) must '
+                 'be given')
 
 rootdir = args[0]
 if rootdir[-1] == '/':
     rootdir = rootdir[:-1]
-print "\nExtracting VASP data from: " + str(rootdir)
+print("\nExtracting VASP data from: " + str(rootdir))
 
 
 if opts.gasphase_directory == 'gasphase':
@@ -63,7 +72,5 @@ else:
     gasphase_dir = opts.gasphase_directory
 
 OA = VASP_DATA(rootdir, gasphase_dir)
-OA.write_outputdata(opts.outputfile)
-
-
-
+OA.write_outputdata(uri=opts.output, driver=opts.driver,
+                    options=opts.options)
