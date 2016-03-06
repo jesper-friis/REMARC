@@ -51,11 +51,11 @@ class VASP_DATA(object):
         # This makes this class a SOFT entity object
         if HAVE_SOFT:
             self.__soft_entity__ = softpy.entity_t(
-                get_meta_name='Extraction', 
-                get_meta_version='0.2',
+                get_meta_name='vaspdata', 
+                get_meta_version='0.1',
                 get_meta_namespace='eu.nanosim.vasp',
-                get_dimensions=['nAtoms'],
-                get_dimension_size=lambda e, label: 4,
+                get_dimensions=[],
+                get_dimension_size=lambda e, label: 0,
                 store=self.store,
                 load=self.load,
                 id=None,
