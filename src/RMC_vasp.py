@@ -1,19 +1,19 @@
-#!/usr/bin env python 
+#!/usr/bin env python
 
 ################################################################################
 #
 # RMC-vasp
 #
-# Retriving output data from DFT calculations 
+# Retriving output data from DFT calculations
 #
-# Part of the REMARC set of scripts for retriving output data 
-# from DFT calculations (using VASP).  
+# Part of the REMARC set of scripts for retriving output data
+# from DFT calculations (using VASP).
 #
 # Specifically writes the DFT data to a text-file that is input for
 # RMC-rate. RMC-vasp relies on vasp_data and vasp_outcar modules.
 # The VASP DFT calculations must be organized according the manual.
-# Requires that the VASP-files, CONTCAR and OUTCAR, are placed in 
-# the corresponding directories. 
+# Requires that the VASP-files, CONTCAR and OUTCAR, are placed in
+# the corresponding directories.
 #
 # Input: root_directory, path to the VASP calculations
 # Optional: -g path to the directory for isolated atoms/molecules
@@ -59,6 +59,11 @@ if len(args) == 0:
 elif len(args) >1:
     parser.error('Too many arguments. Only the directory (rootdir) must '
                  'be given')
+
+# Append output file extension if it is missing
+if opts.driver in ('hdf5', 'json') and not '.' in os.path.basename(opts.output):
+    opts.output += '.' + opts.driver
+
 
 rootdir = args[0]
 if rootdir[-1] == '/':
