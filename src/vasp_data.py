@@ -8,17 +8,27 @@ import re
 import math
 import warnings
 import json
+import ast
+
+from vasp_outcar import CONTCAR, OUTCAR
+
+thisdir = os.path.abspath(os.path.dirname(__file__))
 
 try:
     import softpy
     HAVE_SOFT = True
+    BasePhaseData = softpy.entity(
+        open(os.path.join(thisdir, 'eu.nanosim.vasp.phasedata.json')))
+    BaseStructure = softpy.entity(
+        open(os.path.join(thisdir, 'eu.nanosim.vasp.structure.json')))
 except ImportError:
     warnings.warn('SOFT is not available')
     HAVE_SOFT = False
+    BasePhaseData = object
+    BaseStructure = object
 
-
-import numpy as np
-from vasp_outcar import CONTCAR, OUTCAR
+if sys.version_info.major >= 3:
+    basestring = str
 
 
 class VASP_DATA(object):
@@ -62,6 +72,14 @@ class VASP_DATA(object):
                 user_data=self,
             )
 
+        gasphaselist = self.get_gasphaselist()
+        #self.gasdata = PhaseData('gasphase', gasphaselist)
+        print('=' * 5 + '  -STRUCTURE-  ' + '=' * 5)
+        self.structures = [Structure(*ph.split('\t')) for ph in gasphaselist]
+        #with softpy.Storage(driver='hdf5', uri='test.h5') as s:
+        #    s.save(self.gasdata)
+
+
     def store(self, e, datamodel):
         """Stores self into datamodel.
 
@@ -80,8 +98,38 @@ class VASP_DATA(object):
         softpy.datamodel_append_string(datamodel, 'surface_name', surface_name)
         softpy.datamodel_append_string(datamodel, 'solid_name', solid_name)
 
+        gasphaselist = self.get_gasphaselist()
+        gasdata = PhaseData('gasphase', gasphaselist)
+        ## gassphase
+        #surface_names = []
+        #compositions = []
+        #species_names = []
+        #states = []
+        #site_names = []
+        #total_energies = []
+        #freq_list = []
+        #cells = []
+        #pos_list = []
+        #info_list = []
+        #for (surface_name, composition, species_name,
+        #     state, site_name, total_energy, frequencies,
+        #     cell, positions, info) in self.get_gasphaselist():
+        #    surface_names.append(surface_name)
+        #    compositions.append(composition)
+        #    species_names.append(species_name)
+        #    states.append(state)
+        #    site_names.append(site_name)
+        #    total_energies.append(total_energy)
+        #    freq_list.append(frequencies)
+        #    cells.append(cell)
+        #    pos_list.append(positions)
+        #    info_list(info)
+        #print('*** gassphase ***')
+        #print(surface_names)
+        #softpy.datamodel.append_string_list('gassphase_surface_names'
+
         softpy.datamodel_append_string_list(
-            datamodel, 'gasphase', self.get_gasphaselist())
+            datamodel, 'gasphase', gasphaselist)
 
         if systems[0]:
             surface = self.get_systemlist(system='surface')
@@ -910,17 +958,95 @@ class VASP_DATA(object):
             ofile_solid.close()
 
 
+
+class Structure(BaseStructure):
+    """VASP results for a molecule/structure.
+
+    Arguments
+    ---------
+    surface_name : string
+    composition : string
+    species_name : string
+    state : string
+    site_name : string
+    total_energy : string | float
+    frequencies : string | sequence
+    cell : 3x3 floats
+    coords : sequence
+        Sequence of (symbol, [x, y, z])-tuples.
+    info : string
+    """
+    def __init__(self, surface_name, composition, species_name, state,
+                 site_name, total_energy, frequencies, cell, coords, info):
+        print('*** Structure.__init__()')
+        super(Structure, self).__init__()
+        print('*** surface_name =', surface_name)
+
+        fm = lambda s: ast.literal_eval(s) if isinstance(s, basestring) else s
+
+        self.surface_name = surface_name
+        self.composition = composition
+        self.species_name = species_name
+        self.state = state
+        self.site_name = site_name
+        self.total_energy = fm(total_energy)
+        self.frequencies = fm(frequencies)
+        self.cell = fm(cell)
+        self.coords = fm(coords)
+        self.symbols = [p[0] for p in self.coords]
+        self.positions = [p[1:] for p in self.coords]
+        self.info = info
+
+
+
+#class PhaseData(BasePhaseData):
+#    """A simple class representing results from a VASP calculation.
+#    """
+#    def __init__(self, phase, datalist):
+#        super(PhaseData, self).__init__()
+#        self.phase = phase
+#        self.surface_names = []
+#        self.compositions = []
+#        self.species_names = []
+#        self.states = []
+#        self.site_names = []
+#        self.total_energies = []
+#        self.frequencies = []
+#        self.cells = []
+#        self.positions = []
+#        self.info = []
+#
+#        for molecule in datalist:
+#            (
+#                surface_name, composition, species_name, state, site_name,
+#                total_energy, frequencies, cell, positions, info
+#            ) = molecule.split('\t')
+#            self.surface_names.append(surface_name)
+#            self.compositions.append(composition)
+#            self.species_names.append(species_name)
+#            self.states.append(state)
+#            self.site_names.append(site_name)
+#            self.total_energies.append(total_energy)
+#            self.frequencies.append(frequencies)
+#            self.cells.append(cell)
+#            self.positions.append(positions)
+#            self.info.append(info)
+
+
 class TSCheckError(OSError):
     """Baseclass for errors in this module."""
     pass
+
 
 class MissingDirError(TSCheckError):
     """Exception raised when a directory is missing."""
     pass
 
+
 class DirNameError(TSCheckError):
     """Exception raised for non-conforming directory names."""
     pass
+
 
 class MissingFileError(TSCheckError):
     """Exception raised when a directory is missing."""

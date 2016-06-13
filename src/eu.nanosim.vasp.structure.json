@@ -1,0 +1,14 @@
+{
+    "name": "molecule",
+    "version": 0.1,
+    "namespace": "eu.nanosim.vasp",
+    "description": "REMARC data for a molecule or bulk structure",
+    "dimensions": [],
+    "properties": [
+        {
+            "name": "surface_name",
+            "type": "string",
+            "description": "Name of surface (path name of the surface directory)"
+        }
+    ]
+}
