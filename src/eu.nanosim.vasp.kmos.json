@@ -1,0 +1,60 @@
+{
+    "name": "kmos",
+    "version": 0.1,
+    "namespace": "eu.nanosim.vasp",
+    "description": "KMOS",
+    "dimensions": [
+	{
+	    "name": "nspecies",
+	    "description": "Number number of species (atom/molecule or empty)"
+	},
+	{
+	    "name": "natoms",
+	    "description": "Total number number of atoms"
+	},
+	{
+	    "name": "nlayers",
+	    "description": "Number number of layers"
+	},
+	{
+	    "name": "nsites",
+	    "description": "Number number of sites"
+	},
+	{
+	    "name": "ncoords",
+	    "description": "Number coordinates. Always 3"
+	}
+    ],
+    "properties": [
+        {
+            "name": "species",
+            "type": "string_list",
+	    "dims": ["nspecies"],
+            "description": "Name of species (may also be empty)."
+        },
+        {
+            "name": "atoms",
+            "type": "string_list",
+	    "dims": ["natoms"],
+            "description": "Chemical symbol of all atoms."
+        },
+        {
+            "name": "species_index",
+            "type": "int",
+	    "dims": ["natoms"],
+            "description": "Index of species that this atom belongs to. First index is zero."
+        },
+        {
+            "name": "positions",
+            "type": "double",
+	    "dims": ["natoms", "ncoords"],
+            "description": "Position of all atoms."
+        },
+        {
+            "name": "layers",
+            "type": "string_list",
+	    "dims": ["nlayers"],
+            "description": "Name of all layers."
+        }
+    ]
+}
