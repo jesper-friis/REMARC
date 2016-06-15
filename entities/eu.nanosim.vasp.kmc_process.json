@@ -1,6 +1,6 @@
 {
     "name": "kmc_process",
-    "version": 0.1,
+    "version": "0.1",
     "namespace": "eu.nanosim.vasp",
     "description": "Entity describing reaction processes for kinetic Monte Carlo.",
     "dimensions": [

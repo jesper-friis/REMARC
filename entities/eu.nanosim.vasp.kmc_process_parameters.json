@@ -1,6 +1,6 @@
 {
     "name": "kmc_process_parameters",
-    "version": 0.1,
+    "version": "0.1",
     "namespace": "eu.nanosim.vasp",
     "description": "Process parameters for surface reactions.",
     "dimensions": [

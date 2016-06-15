@@ -1,6 +1,6 @@
 {
     "name": "kmos",
-    "version": 0.1,
+    "version": "0.1",
     "namespace": "eu.nanosim.vasp",
     "description": "Collection of input data for KMOS.",
     "dimensions": [
@@ -50,6 +50,11 @@
             "name": "model_parameters",
             "type": "eu.nanosim.vasp.kmos_model_parameters",
             "description": "Model parameters used by KMOS."
+        },
+        {
+            "name": "fillvalues",
+            "type": "eu.nanosim.vasp.kmos_fillvalues",
+            "description": "Special values of different types indicating that no data is available."
         }
     ]
 }

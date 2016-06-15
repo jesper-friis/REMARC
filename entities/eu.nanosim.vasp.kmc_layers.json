@@ -1,6 +1,6 @@
 {
     "name": "kmc_layers",
-    "version": 0.1,
+    "version": "0.1",
     "namespace": "eu.nanosim.vasp",
     "description": "Describe the adsorbate layers for kinetic Monte Carlo simulations.  We do not factor out the sites into own entities, since a site position make no sence without a common reference.",
     "dimensions": [

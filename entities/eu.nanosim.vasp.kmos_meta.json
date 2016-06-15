@@ -1,6 +1,6 @@
 {
     "name": "kmos_meta",
-    "version": 0.1,
+    "version": "0.1",
     "namespace": "eu.nanosim.vasp",
     "description": "KMOS input meta information.",
     "dimensions": [],
