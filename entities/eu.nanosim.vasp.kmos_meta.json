@@ -19,6 +19,11 @@
             "name": "model_name",
             "type": "string",
             "description": "Name of this simulation."
+        },
+        {
+            "name": "model_dimension",
+            "type": "int32",
+            "description": "Index of the cell axis pointing out of the surface (??)."
         }
     ]
 }
