@@ -13,7 +13,7 @@
 	    "description": "Number partial pressures (of the species)."
 	},
 	{
-	    "name": "nrate_parameters",
+	    "name": "nother_rate_eq_par",
 	    "description": "Other parameters defined in the rate equations."
 	}
     ],
@@ -51,17 +51,16 @@
             "description": "Value of each partial pressure."
         },
         {
-            "name": "partial_pressure_names",
+            "name": "other_rate_eq_par_names",
             "type": "string_list",
-	    "dims": ["nrate_parameters"],
-            "description": "Name of partial pressures used in the rate equations."
+	    "dims": ["nother_rate_eq_par"],
+            "description": "Name of other rate equation parameters."
         },
         {
-            "name": "partial_pressure_values",
+            "name": "other_rate_eq_par_values",
             "type": "double",
-	    "dims": ["nrate_parameters"],
-	    "unit": "bar",
-            "description": "Value of each partial pressure."
+	    "dims": ["nother_rate_eq_par"],
+            "description": "Value of other rate equation parameters."
         }
     ]
 }
