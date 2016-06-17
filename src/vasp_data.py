@@ -986,7 +986,7 @@ class DFTData(BaseDFTData):
         self.cell = fm(cell)
         self.coords = fm(coords)
         self.symbols = [p[0] for p in self.coords]
-        self.positions = [p[1:] for p in self.coords]
+        self.positions = [p[1:][0] for p in self.coords]
         self.info = info
 
     def get_atoms(self):
