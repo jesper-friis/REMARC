@@ -13,19 +13,17 @@ import ast
 from vasp_outcar import CONTCAR, OUTCAR
 
 thisdir = os.path.abspath(os.path.dirname(__file__))
+entitydir = os.path.join(thisdir, '../entities')
 
 try:
     import softpy
     HAVE_SOFT = True
-    BasePhaseData = softpy.entity(
-        open(os.path.join(thisdir, 'eu.nanosim.vasp.phasedata.json')))
-    BaseStructure = softpy.entity(
-        open(os.path.join(thisdir, 'eu.nanosim.vasp.structure.json')))
+    BaseDFTResult = softpy.entity(
+        open(os.path.join(entitydir, 'eu.nanosim.vasp.dftresult.json')))
 except ImportError:
     warnings.warn('SOFT is not available')
     HAVE_SOFT = False
-    BasePhaseData = object
-    BaseStructure = object
+    BaseDFTResult = object
 
 if sys.version_info.major >= 3:
     basestring = str
@@ -59,109 +57,105 @@ class VASP_DATA(object):
         self.phononpyfile = 'mesh.yaml'
 
         # This makes this class a SOFT entity object
-        if HAVE_SOFT:
-            self.__soft_entity__ = softpy.entity_t(
-                get_meta_name='vaspdata',
-                get_meta_version='0.1',
-                get_meta_namespace='eu.nanosim.vasp',
-                get_dimensions=[],
-                get_dimension_size=lambda e, label: 0,
-                store=self.store,
-                load=self.load,
-                id=None,
-                user_data=self,
-            )
+        #if HAVE_SOFT:
+        #    self.__soft_entity__ = softpy.entity_t(
+        #        get_meta_name='vaspdata',
+        #        get_meta_version='0.1',
+        #        get_meta_namespace='eu.nanosim.vasp',
+        #        get_dimensions=[],
+        #        get_dimension_size=lambda e, label: 0,
+        #        store=self.store,
+        #        load=self.load,
+        #        id=None,
+        #        user_data=self,
+        #    )
 
-        gasphaselist = self.get_gasphaselist()
-        #self.gasdata = PhaseData('gasphase', gasphaselist)
-        print('=' * 5 + '  -STRUCTURE-  ' + '=' * 5)
-        self.structures = [Structure(*ph.split('\t')) for ph in gasphaselist]
-        #with softpy.Storage(driver='hdf5', uri='test.h5') as s:
-        #    s.save(self.gasdata)
+        self.gasphases = [
+            DFTResult(*ph.split('\t')) for ph in self.get_gasphaselist()]
 
 
-    def store(self, e, datamodel):
-        """Stores self into datamodel.
-
-        Confirms to eu.nanosim.vasp.vaspdata version 0.1
-
-        This function is used by softpy.Storage and normally not
-        called directly.
-
-        The current use of string lists is not useful.  The data layout will
-        drastically change in future version.
-        """
-        systems = self.sysdir_check()
-        surface_name = systems[0] if isinstance(systems[0], str) else ''
-        solid_name = systems[1] if isinstance(systems[1], str) else ''
-
-        softpy.datamodel_append_string(datamodel, 'surface_name', surface_name)
-        softpy.datamodel_append_string(datamodel, 'solid_name', solid_name)
-
-        gasphaselist = self.get_gasphaselist()
-        gasdata = PhaseData('gasphase', gasphaselist)
-        ## gassphase
-        #surface_names = []
-        #compositions = []
-        #species_names = []
-        #states = []
-        #site_names = []
-        #total_energies = []
-        #freq_list = []
-        #cells = []
-        #pos_list = []
-        #info_list = []
-        #for (surface_name, composition, species_name,
-        #     state, site_name, total_energy, frequencies,
-        #     cell, positions, info) in self.get_gasphaselist():
-        #    surface_names.append(surface_name)
-        #    compositions.append(composition)
-        #    species_names.append(species_name)
-        #    states.append(state)
-        #    site_names.append(site_name)
-        #    total_energies.append(total_energy)
-        #    freq_list.append(frequencies)
-        #    cells.append(cell)
-        #    pos_list.append(positions)
-        #    info_list(info)
-        #print('*** gassphase ***')
-        #print(surface_names)
-        #softpy.datamodel.append_string_list('gassphase_surface_names'
-
-        softpy.datamodel_append_string_list(
-            datamodel, 'gasphase', gasphaselist)
-
-        if systems[0]:
-            surface = self.get_systemlist(system='surface')
-            adsorbate = self.get_statelist(system='surface')
-            surface_ts = self.get_tslist(system='surface')
-        else:
-            surface = ['']
-            adsorbate = ['']
-            surface_ts = ['']
-        softpy.datamodel_append_string_list(datamodel, 'surface', surface)
-        softpy.datamodel_append_string_list(datamodel, 'adsorbate', adsorbate)
-        softpy.datamodel_append_string_list(datamodel, 'surface_ts', surface_ts)
-
-        if systems[1]:
-            solid = self.get_systemlist(system='solid')
-            bulk = self.get_statelist(system='solid')
-            solid_ts = self.get_tslist(system='solid')
-        else:
-            solid = ['']
-            bulk = ['']
-            solid_ts = ['']
-        softpy.datamodel_append_string_list(datamodel, 'solid', solid)
-        softpy.datamodel_append_string_list(datamodel, 'bulk', bulk)
-        softpy.datamodel_append_string_list(datamodel, 'solid_ts', solid_ts)
-
-    def load(self, e, datamodel):
-        """Loads datamodel into self.
-
-        This function is used by softpy.Storage and normally not
-        called directly.
-        """
-        raise NotImplementedError('loading data is not supported')
+#    def store(self, e, datamodel):
+#        """Stores self into datamodel.
+#
+#        Confirms to eu.nanosim.vasp.vaspdata version 0.1
+#
+#        This function is used by softpy.Storage and normally not
+#        called directly.
+#
+#        The current use of string lists is not useful.  The data layout will
+#        drastically change in future version.
+#        """
+#        systems = self.sysdir_check()
+#        surface_name = systems[0] if isinstance(systems[0], str) else ''
+#        solid_name = systems[1] if isinstance(systems[1], str) else ''
+#
+#        softpy.datamodel_append_string(datamodel, 'surface_name', surface_name)
+#        softpy.datamodel_append_string(datamodel, 'solid_name', solid_name)
+#
+#        gasphaselist = self.get_gasphaselist()
+#        gasdata = PhaseData('gasphase', gasphaselist)
+#        ## gassphase
+#        #surface_names = []
+#        #compositions = []
+#        #species_names = []
+#        #states = []
+#        #site_names = []
+#        #total_energies = []
+#        #freq_list = []
+#        #cells = []
+#        #pos_list = []
+#        #info_list = []
+#        #for (surface_name, composition, species_name,
+#        #     state, site_name, total_energy, frequencies,
+#        #     cell, positions, info) in self.get_gasphaselist():
+#        #    surface_names.append(surface_name)
+#        #    compositions.append(composition)
+#        #    species_names.append(species_name)
+#        #    states.append(state)
+#        #    site_names.append(site_name)
+#        #    total_energies.append(total_energy)
+#        #    freq_list.append(frequencies)
+#        #    cells.append(cell)
+#        #    pos_list.append(positions)
+#        #    info_list(info)
+#        #print('*** gassphase ***')
+#        #print(surface_names)
+#        #softpy.datamodel.append_string_list('gassphase_surface_names'
+#
+#        softpy.datamodel_append_string_list(
+#            datamodel, 'gasphase', gasphaselist)
+#
+#        if systems[0]:
+#            surface = self.get_systemlist(system='surface')
+#            adsorbate = self.get_statelist(system='surface')
+#            surface_ts = self.get_tslist(system='surface')
+#        else:
+#            surface = ['']
+#            adsorbate = ['']
+#            surface_ts = ['']
+#        softpy.datamodel_append_string_list(datamodel, 'surface', surface)
+#        softpy.datamodel_append_string_list(datamodel, 'adsorbate', adsorbate)
+#        softpy.datamodel_append_string_list(datamodel, 'surface_ts', surface_ts)
+#
+#        if systems[1]:
+#            solid = self.get_systemlist(system='solid')
+#            bulk = self.get_statelist(system='solid')
+#            solid_ts = self.get_tslist(system='solid')
+#        else:
+#            solid = ['']
+#            bulk = ['']
+#            solid_ts = ['']
+#        softpy.datamodel_append_string_list(datamodel, 'solid', solid)
+#        softpy.datamodel_append_string_list(datamodel, 'bulk', bulk)
+#        softpy.datamodel_append_string_list(datamodel, 'solid_ts', solid_ts)
+#
+#    def load(self, e, datamodel):
+#        """Loads datamodel into self.
+#
+#        This function is used by softpy.Storage and normally not
+#        called directly.
+#        """
+#        raise NotImplementedError('loading data is not supported')
 
 
     def sysdir_check(self):
@@ -959,12 +953,12 @@ class VASP_DATA(object):
 
 
 
-class Structure(BaseStructure):
-    """VASP results for a molecule/structure.
+class DFTResult(BaseDFTResult):
+    """DFT results for a molecule/structure.
 
     Arguments
     ---------
-    surface_name : string
+    phase_name : string
     composition : string
     species_name : string
     state : string
@@ -976,15 +970,13 @@ class Structure(BaseStructure):
         Sequence of (symbol, [x, y, z])-tuples.
     info : string
     """
-    def __init__(self, surface_name, composition, species_name, state,
+    def __init__(self, phase_name, composition, species_name, state,
                  site_name, total_energy, frequencies, cell, coords, info):
-        print('*** Structure.__init__()')
-        super(Structure, self).__init__()
-        print('*** surface_name =', surface_name)
+        super(DFTResult, self).__init__()
 
         fm = lambda s: ast.literal_eval(s) if isinstance(s, basestring) else s
 
-        self.surface_name = surface_name
+        self.phase_name = phase_name
         self.composition = composition
         self.species_name = species_name
         self.state = state
@@ -997,40 +989,10 @@ class Structure(BaseStructure):
         self.positions = [p[1:] for p in self.coords]
         self.info = info
 
+    def get_atoms(self):
+        """Returns an Atoms object."""
+        pass
 
-
-#class PhaseData(BasePhaseData):
-#    """A simple class representing results from a VASP calculation.
-#    """
-#    def __init__(self, phase, datalist):
-#        super(PhaseData, self).__init__()
-#        self.phase = phase
-#        self.surface_names = []
-#        self.compositions = []
-#        self.species_names = []
-#        self.states = []
-#        self.site_names = []
-#        self.total_energies = []
-#        self.frequencies = []
-#        self.cells = []
-#        self.positions = []
-#        self.info = []
-#
-#        for molecule in datalist:
-#            (
-#                surface_name, composition, species_name, state, site_name,
-#                total_energy, frequencies, cell, positions, info
-#            ) = molecule.split('\t')
-#            self.surface_names.append(surface_name)
-#            self.compositions.append(composition)
-#            self.species_names.append(species_name)
-#            self.states.append(state)
-#            self.site_names.append(site_name)
-#            self.total_energies.append(total_energy)
-#            self.frequencies.append(frequencies)
-#            self.cells.append(cell)
-#            self.positions.append(positions)
-#            self.info.append(info)
 
 
 class TSCheckError(OSError):
