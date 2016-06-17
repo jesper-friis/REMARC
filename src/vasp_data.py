@@ -18,12 +18,12 @@ entitydir = os.path.join(thisdir, '../entities')
 try:
     import softpy
     HAVE_SOFT = True
-    BaseDFTResult = softpy.entity(
-        open(os.path.join(entitydir, 'eu.nanosim.vasp.dftresult.json')))
+    BaseDFTData = softpy.entity(
+        open(os.path.join(entitydir, 'eu.nanosim.vasp.dftdata.json')))
 except ImportError:
     warnings.warn('SOFT is not available')
     HAVE_SOFT = False
-    BaseDFTResult = object
+    BaseDFTData = object
 
 if sys.version_info.major >= 3:
     basestring = str
@@ -71,7 +71,7 @@ class VASP_DATA(object):
         #    )
 
         self.gasphases = [
-            DFTResult(*ph.split('\t')) for ph in self.get_gasphaselist()]
+            DFTData(*ph.split('\t')) for ph in self.get_gasphaselist()]
 
 
 #    def store(self, e, datamodel):
@@ -953,7 +953,7 @@ class VASP_DATA(object):
 
 
 
-class DFTResult(BaseDFTResult):
+class DFTData(BaseDFTData):
     """DFT results for a molecule/structure.
 
     Arguments
@@ -972,7 +972,7 @@ class DFTResult(BaseDFTResult):
     """
     def __init__(self, phase_name, composition, species_name, state,
                  site_name, total_energy, frequencies, cell, coords, info):
-        super(DFTResult, self).__init__()
+        super(DFTData, self).__init__()
 
         fm = lambda s: ast.literal_eval(s) if isinstance(s, basestring) else s
 

@@ -7,7 +7,11 @@ import sys
 import argparse
 
 import softpy
-from REMARC.vasp_data import VASP_DATA
+
+thisdir = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(os.path.join(thisdir, '..', 'src'))
+
+from vasp_data import VASP_DATA
 
 #from REMARC.vasptb.outcar import OUTCAR
 #from REMARC.vasptb.vaspcalculation import VaspCalculation
